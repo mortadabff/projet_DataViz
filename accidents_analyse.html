@@ -1,0 +1,1585 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Accidents routiers — Chicago vs Île-de-France</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,650;1,9..144,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.118/Build/Cesium/Widgets/widgets.css" />
+  <style>
+    :root {
+      --bg: #f0ebe3;
+      --bg-soft: #e8e2d8;
+      --panel: #fffcf7;
+      --text: #2a2622;
+      --muted: #6b6560;
+      --accent-chi: #b45309;
+      --accent-idf: #0f766e;
+      --border: #d9d0c4;
+      --shadow: rgba(42, 38, 34, 0.06);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+      font-size: 1rem;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg-soft) 55%, #e5dfd6 100%);
+      background-attachment: fixed;
+      color: var(--text);
+      line-height: 1.6;
+    }
+    header {
+      padding: 2rem 1.5rem 1.25rem;
+      max-width: 1100px;
+      margin: 0 auto;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 {
+      font-family: "Fraunces", "Georgia", "Times New Roman", serif;
+      font-size: 1.85rem;
+      font-weight: 650;
+      font-variation-settings: "SOFT" 50;
+      margin: 0 0 0.5rem;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .subtitle { color: var(--muted); font-size: 0.98rem; max-width: 52rem; font-weight: 400; }
+    .badges { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .badge {
+      font-size: 0.78rem;
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      background: #fff;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 2px var(--shadow);
+    }
+    .badge.chi { border-left: 3px solid var(--accent-chi); }
+    .badge.idf { border-left: 3px solid var(--accent-idf); }
+    main { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+    section {
+      margin-bottom: 2rem;
+      padding: 1.35rem 1.4rem;
+      background: var(--panel);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 12px var(--shadow);
+    }
+    section h2 {
+      font-family: "Fraunces", "Georgia", serif;
+      font-size: 1.22rem;
+      margin: 0 0 0.75rem;
+      font-weight: 600;
+      font-variation-settings: "SOFT" 40;
+      color: var(--text);
+    }
+    section p.note {
+      font-size: 0.88rem;
+      color: var(--muted);
+      margin: 0 0 1rem;
+    }
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .story-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.65rem;
+      margin-top: 0.85rem;
+      margin-bottom: 0.35rem;
+    }
+    .story-step {
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 8px;
+      padding: 0.7rem 0.8rem;
+      font-size: 0.86rem;
+      color: var(--muted);
+    }
+    .story-step strong {
+      color: var(--text);
+      display: block;
+      margin-bottom: 0.2rem;
+    }
+    .analysis-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin: 0 0 0.95rem;
+    }
+    .analysis-controls label {
+      display: block;
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 0.2rem;
+    }
+    .analysis-controls input[type="range"],
+    .analysis-controls select {
+      width: 100%;
+    }
+    .analysis-controls button {
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 0.45rem 0.65rem;
+      cursor: pointer;
+      font-family: "Source Sans 3", sans-serif;
+      font-size: 0.87rem;
+      font-weight: 600;
+    }
+    .analysis-controls button:hover { background: var(--bg-soft); }
+    .insight-box {
+      margin-top: 0.75rem;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.7rem 0.8rem;
+      color: var(--muted);
+      font-size: 0.87rem;
+    }
+    .remarks-box {
+      margin-top: 0.8rem;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 0.9rem;
+      color: var(--muted);
+      font-size: 0.87rem;
+    }
+    .remarks-box ul {
+      margin: 0.4rem 0 0;
+      padding-left: 1.1rem;
+    }
+    .kpi {
+      padding: 0.75rem 1rem;
+      background: var(--bg);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .kpi .val { font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .kpi .lbl { font-size: 0.8rem; color: var(--muted); letter-spacing: 0.01em; font-weight: 600; }
+    .kpi.chi .val { color: var(--accent-chi); }
+    .kpi.idf .val { color: var(--accent-idf); }
+    .chart {
+      min-height: 280px;
+      width: 100%;
+      overflow-x: auto;
+    }
+    .chart .vega-embed,
+    .chart .vega-embed summary,
+    .chart .vega-embed canvas,
+    .chart .vega-embed svg {
+      max-width: 100%;
+    }
+    .maps-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .map-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.7rem;
+      margin-bottom: 0.9rem;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .map-controls label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 0.2rem;
+    }
+    .map-controls input[type="range"] {
+      width: 100%;
+    }
+    .map-controls .ctrl {
+      min-width: 0;
+    }
+    .map-controls .btn-row {
+      display: flex;
+      align-items: end;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+    .map-controls button {
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 0.45rem 0.6rem;
+      cursor: pointer;
+      font-family: "Source Sans 3", sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+    .map-controls button:hover {
+      background: var(--bg-soft);
+    }
+    .map-status {
+      margin-top: 0.5rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    @media (max-width: 800px) { .maps-row { grid-template-columns: 1fr; } }
+    .map-wrap h3 {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 0.95rem;
+      margin: 0 0 0.5rem;
+      font-weight: 600;
+    }
+    .leaflet-map {
+      height: 380px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .viz3d-row, .globe-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 900px) {
+      .viz3d-row, .globe-row { grid-template-columns: 1fr; }
+    }
+    .viz3d-wrap h3, .globe-wrap h3 {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 0.95rem;
+      margin: 0 0 0.5rem;
+      font-weight: 600;
+    }
+    .viz3d-map, .globe-map {
+      height: 430px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .viz-warning {
+      margin-top: 0.55rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    #loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--muted);
+    }
+    #main-content { display: none; }
+    .tech-box {
+      font-size: 0.85rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+    }
+    .tech-box h3 {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 1.05rem;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    .tech-box ul { margin: 0; padding-left: 1.2rem; }
+    section code {
+      font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+      font-size: 0.88em;
+      background: var(--bg-soft);
+      color: var(--text);
+      padding: 0.1em 0.4em;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Accidents de la circulation : Chicago et Île-de-France</h1>
+    <p class="subtitle">
+      Exploration comparative des distributions temporelles, des conditions et des motifs spatiaux à partir de deux jeux
+      d’accidents géolocalisés. Les visualisations sont interactives (sélection, zoom, infobulles Vega-Lite).
+    </p>
+    <div class="badges">
+      <span class="badge chi">Chicago — données traitées (échantillon / période chargée dans les CSV)</span>
+      <span class="badge idf">Île-de-France — données traitées (échantillon / période chargée dans les CSV)</span>
+    </div>
+  </header>
+
+  <div id="loading">Chargement et analyse des fichiers CSV…</div>
+  <main id="main-content">
+    <section>
+      <h2>1. Données et limites de comparaison</h2>
+      <p class="note">
+        Les deux fichiers ne couvrent pas nécessairement la même période ni les mêmes règles d’enregistrement (définition
+        d’accident, déclaration, seuils). Les dates Chicago sont lues au <strong>format américain MM/JJ/AAAA</strong>, comme
+        dans la source. Les volumes bruts ne sont donc <strong>pas comparables en niveau absolu</strong> ;
+        l’analyse privilégie les <strong>formes</strong> des distributions (parts horaires, saisons, contrastes
+        lumineux/météo) et la <strong>structure spatiale relative</strong>.
+      </p>
+      <div class="kpi-row" id="kpis"></div>
+      <div id="data-remarks" class="remarks-box">Analyse des CSV en cours…</div>
+      <div class="story-grid">
+        <div class="story-step">
+          <strong>Étape A — Décrire</strong>
+          Identifier les rythmes horaires et mensuels dans chaque jeu de données.
+        </div>
+        <div class="story-step">
+          <strong>Étape B — Comparer</strong>
+          Passer en parts normalisées pour comparer les formes plutôt que les volumes.
+        </div>
+        <div class="story-step">
+          <strong>Étape C — Expliquer</strong>
+          Relier motifs spatiaux aux conditions de luminosité et de météo.
+        </div>
+        <div class="story-step">
+          <strong>Étape D — Critiquer</strong>
+          Discuter les biais possibles de collecte, période, définition et couverture.
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. Histogrammes : répartition par heure (brut et normalisé)</h2>
+      <p class="note">
+        L’histogramme brut reflète le volume enregistré. Le graphique normalisé exprime, pour chaque ville, la
+        <strong>part des accidents</strong> par tranche horaire (somme des parts = 100 %), ce qui rend comparables les
+        profils journaliers malgré des effectifs différents. Les heures sont locales à chaque territoire ;
+        l’interprétation doit tenir compte du décalage Paris-Chicago.
+      </p>
+      <div class="analysis-controls">
+        <div>
+          <label for="hour-min">Heure min: <span id="hour-min-val">0</span>h</label>
+          <input id="hour-min" type="range" min="0" max="23" step="1" value="0" />
+        </div>
+        <div>
+          <label for="hour-max">Heure max: <span id="hour-max-val">23</span>h</label>
+          <input id="hour-max" type="range" min="0" max="23" step="1" value="23" />
+        </div>
+        <div>
+          <label for="hour-view-mode">Mode d’affichage</label>
+          <select id="hour-view-mode">
+            <option value="both">Brut + normalisé</option>
+            <option value="raw">Brut seulement</option>
+            <option value="norm">Normalisé seulement</option>
+          </select>
+        </div>
+        <div>
+          <label for="hour-reset">Réinitialisation rapide</label>
+          <button id="hour-reset" type="button">Plein intervalle 0–23</button>
+        </div>
+      </div>
+      <div id="chart-hour-raw" class="chart"></div>
+      <div id="chart-hour-norm" class="chart"></div>
+      <div id="chart-divergence" class="chart"></div>
+      <div id="analysis-insight" class="insight-box">Synthèse dynamique en cours…</div>
+    </section>
+
+    <section>
+      <h2>3. Saisonnalité mensuelle</h2>
+      <p class="note">Nombre d’accidents par mois dans chaque fichier (les périodes couvertes peuvent différer).</p>
+      <div id="chart-month" class="chart"></div>
+    </section>
+
+    <section>
+      <h2>4. Heatmaps jour × heure (spatio-temporel agrégé)</h2>
+      <p class="note">
+        Matrices jour de la semaine × heure : intensité = nombre d’accidents. Permet de repérer les pics
+        (ex. heures de pointe vs week-end) selon chaque jeu de données.
+      </p>
+      <div id="chart-heat-chi" class="chart"></div>
+      <div id="chart-heat-idf" class="chart"></div>
+    </section>
+
+    <section>
+      <h2>5. Cartes de densité (coordonnées)</h2>
+      <p class="note">
+        Cartes Leaflet avec couche de « chaleur » (heatmap) à partir des lat/long. Zoom et déplacement interactifs.
+        Projection WGS84 — les deux zones sont à des échelles géographiques différentes ; deux cartes côte à côte.
+      </p>
+      <div class="map-controls">
+        <div class="ctrl">
+          <label for="map-radius">Rayon densité: <span id="map-radius-val">14</span></label>
+          <input id="map-radius" type="range" min="6" max="26" step="1" value="14" />
+        </div>
+        <div class="ctrl">
+          <label for="map-intensity">Intensité: <span id="map-intensity-val">0.45</span></label>
+          <input id="map-intensity" type="range" min="0.15" max="0.95" step="0.05" value="0.45" />
+        </div>
+        <div class="ctrl">
+          <label for="map-sync">Synchroniser les deux cartes</label>
+          <input id="map-sync" type="checkbox" checked />
+        </div>
+        <div class="ctrl">
+          <label for="map-points">Afficher un échantillon de points</label>
+          <input id="map-points" type="checkbox" />
+        </div>
+        <div class="ctrl btn-row">
+          <button type="button" id="map-recenter">Recentrer</button>
+          <button type="button" id="map-reset-zoom">Zoom initial</button>
+        </div>
+      </div>
+      <div class="maps-row">
+        <div class="map-wrap">
+          <h3 style="color: var(--accent-chi)">Chicago</h3>
+          <div id="map-chi" class="leaflet-map"></div>
+        </div>
+        <div class="map-wrap">
+          <h3 style="color: var(--accent-idf)">Île-de-France</h3>
+          <div id="map-idf" class="leaflet-map"></div>
+        </div>
+      </div>
+      <div id="map-status" class="map-status">Interactions: glissez, zoomez, cliquez pour les coordonnées.</div>
+    </section>
+
+    <section>
+      <h2>6. Conditions : luminosité et météo (top catégories)</h2>
+      <p class="note">
+        Les libellés et grilles de classification diffèrent entre sources ; interpréter avec prudence. Graphiques en barres
+        horizontales pour comparer les ordres de grandeur relatifs à l’intérieur de chaque jeu.
+      </p>
+      <div id="chart-lum" class="chart"></div>
+      <div id="chart-weather" class="chart"></div>
+    </section>
+
+    <section>
+      <h2>7. Découpage territorial interne</h2>
+      <p class="note">
+        Chicago : secteurs (<code>Side</code>). IDF : départements (<code>dep_nom</code>). Comparaison des distributions
+        relatives au sein de chaque territoire.
+      </p>
+      <div id="chart-side" class="chart"></div>
+      <div id="chart-dep" class="chart"></div>
+    </section>
+
+    <section>
+      <h2>8. Chicago — délit de fuite (<code>hit_and_run</code>)</h2>
+      <p class="note">Variable présente uniquement dans le fichier Chicago.</p>
+      <div id="chart-hitrun" class="chart"></div>
+    </section>
+
+    <section>
+      <h2>9. Vue 2.5D locale (extrusion sur grille)</h2>
+      <p class="note">
+        Cette vue est une <strong>2.5D</strong> : chaque cellule de grille est extrudée en hauteur selon le nombre d’accidents.
+        Ce n’est pas un volume physique 3D des objets ; c’est un encodage visuel de densité spatiale.
+      </p>
+      <div class="viz3d-row">
+        <div class="viz3d-wrap">
+          <h3 style="color: var(--accent-chi)">Chicago — grille extrudée 2.5D</h3>
+          <div id="viz25d-chi" class="viz3d-map"></div>
+        </div>
+        <div class="viz3d-wrap">
+          <h3 style="color: var(--accent-idf)">Île-de-France — grille extrudée 2.5D</h3>
+          <div id="viz25d-idf" class="viz3d-map"></div>
+        </div>
+      </div>
+      <div class="viz-warning">Lecture: plus la cellule est haute et sombre, plus la concentration d’accidents est forte.</div>
+    </section>
+
+    <section>
+      <h2>10. Double globe Cesium (comparaison macro)</h2>
+      <p class="note">
+        Deux globes indépendants, centrés sur chaque région, avec extrusions de densité. Cette vue met en scène le contexte
+        géographique global ; la lecture fine locale reste plus précise dans les vues 2D/2.5D.
+      </p>
+      <div class="globe-row">
+        <div class="globe-wrap">
+          <h3 style="color: var(--accent-chi)">Globe Chicago</h3>
+          <div id="globe-chi" class="globe-map"></div>
+        </div>
+        <div class="globe-wrap">
+          <h3 style="color: var(--accent-idf)">Globe Île-de-France</h3>
+          <div id="globe-idf" class="globe-map"></div>
+        </div>
+      </div>
+      <div class="viz-warning">Important: cette visualisation est aussi une représentation 2.5D sur globe (extrusions de grille).</div>
+    </section>
+
+    <footer class="tech-box">
+      <h3>Choix techniques et variables visuelles (rappel pour le rendu)</h3>
+      <ul>
+        <li><strong>Vega-Lite</strong> : barres empilées / groupées, courbes, heatmaps rectangulaires — encodage position
+          (heure, mois), couleur quantitative (gradient), légendes et tooltips pour l’interaction.</li>
+        <li><strong>Leaflet + leaflet.heat</strong> : carte de base OpenStreetMap (libre), superposition d’une couche de
+          densité pour synthétiser l’empilement des points sans saturer la lecture.</li>
+        <li><strong>Papa Parse</strong> : analyse entièrement dans le navigateur après chargement des CSV (ouvrir via un
+          serveur HTTP local, pas en <code>file://</code>).</li>
+      </ul>
+    </footer>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5.27.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5.16.3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6.24.0"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.118/Build/Cesium/Cesium.js"></script>
+  <script>
+(function () {
+  const DOW_FR = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+
+  /** Chicago : dates au format US MM/JJ/AAAA (cohérent avec la colonne Mois). */
+  function parseChicagoDate(str) {
+    if (!str || typeof str !== "string") return null;
+    const m = str.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (!m) return null;
+    const month = parseInt(m[1], 10), day = parseInt(m[2], 10), y = parseInt(m[3], 10);
+    return new Date(y, month - 1, day);
+  }
+
+  function parseIdfDate(str) {
+    if (!str || typeof str !== "string") return null;
+    const t = Date.parse(str.trim());
+    if (!isNaN(t)) return new Date(t);
+    return null;
+  }
+
+  function hourFromChicagoRow(r) {
+    const h = r.heure;
+    if (h === "" || h === undefined || h === null) return null;
+    const n = parseInt(String(h).trim(), 10);
+    if (!isNaN(n) && n >= 0 && n <= 23) return n;
+    const p = String(r.Crash_heure || "").split(":");
+    if (p.length) {
+      const hh = parseInt(p[0], 10);
+      if (!isNaN(hh) && hh >= 0 && hh <= 23) return hh;
+    }
+    return null;
+  }
+
+  function aggregate(rowsChicago, rowsIdf) {
+    const nChi = rowsChicago.length;
+    const nIdf = rowsIdf.length;
+
+    const hourlyChi = Array(24).fill(0);
+    const hourlyIdf = Array(24).fill(0);
+    const monthlyChi = Array(13).fill(0);
+    const monthlyIdf = Array(13).fill(0);
+    const heatChi = {};
+    const heatIdf = {};
+    const sideCount = {};
+    const depCount = {};
+    const weatherChi = {};
+    const weatherIdf = {};
+    const lumChi = {};
+    const lumIdf = {};
+    const hitRun = { Y: 0, N: 0, Autre: 0 };
+
+    let minChi = null, maxChi = null, minIdf = null, maxIdf = null;
+    let chiDateValid = 0, chiHourValid = 0, chiCoordValid = 0;
+    let idfDateValid = 0, idfHourValid = 0, idfCoordValid = 0;
+
+    rowsChicago.forEach(function (r) {
+      const dt = parseChicagoDate(r.Crash_date || "");
+      if (dt) {
+        chiDateValid++;
+        const t = dt.getTime();
+        if (!minChi || t < minChi) minChi = t;
+        if (!maxChi || t > maxChi) maxChi = t;
+        const dow = dt.getDay();
+        const hh = hourFromChicagoRow(r);
+        if (hh !== null) {
+          chiHourValid++;
+          hourlyChi[hh]++;
+          const key = dow + "_" + hh;
+          heatChi[key] = (heatChi[key] || 0) + 1;
+        }
+      }
+      const latChi = parseFloat(String(r.LATITUDE || "").replace(",", "."));
+      const lonChi = parseFloat(String(r.LONGITUDE || "").replace(",", "."));
+      if (!isNaN(latChi) && !isNaN(lonChi)) chiCoordValid++;
+      const mo = parseInt(r.Mois, 10);
+      if (!isNaN(mo) && mo >= 1 && mo <= 12) monthlyChi[mo]++;
+      const side = (r.Side || "Inconnu").trim();
+      sideCount[side] = (sideCount[side] || 0) + 1;
+      const w = (r.conditions_atmospheriques || "Inconnu").trim();
+      weatherChi[w] = (weatherChi[w] || 0) + 1;
+      const l = (r.conditions_luminosite || "UNKNOWN").trim();
+      lumChi[l] = (lumChi[l] || 0) + 1;
+      const hr = (r.hit_and_run || "").trim();
+      if (hr === "Y") hitRun.Y++;
+      else if (hr === "N" || hr === "") hitRun.N++;
+      else hitRun.Autre++;
+    });
+
+    rowsIdf.forEach(function (r) {
+      const dt = parseIdfDate(r.date_accident || "");
+      if (dt) {
+        idfDateValid++;
+        const t = dt.getTime();
+        if (!minIdf || t < minIdf) minIdf = t;
+        if (!maxIdf || t > maxIdf) maxIdf = t;
+        const dow = dt.getDay();
+        const he = parseInt(r.heure_entier, 10);
+        if (!isNaN(he) && he >= 0 && he <= 23) {
+          idfHourValid++;
+          hourlyIdf[he]++;
+          const key = dow + "_" + he;
+          heatIdf[key] = (heatIdf[key] || 0) + 1;
+        }
+      }
+      const latIdf = parseFloat(String(r.lat || "").replace(",", "."));
+      const lonIdf = parseFloat(String(r.long || "").replace(",", "."));
+      if (!isNaN(latIdf) && !isNaN(lonIdf)) idfCoordValid++;
+      const mo = parseInt(r.mois, 10);
+      if (!isNaN(mo) && mo >= 1 && mo <= 12) monthlyIdf[mo]++;
+      const dep = (r.dep_nom || "Inconnu").trim();
+      depCount[dep] = (depCount[dep] || 0) + 1;
+      const w = (r.cond_atmospheriques || "Inconnu").trim();
+      weatherIdf[w] = (weatherIdf[w] || 0) + 1;
+      const lu = (r.luminosite || "Non renseigné").trim();
+      lumIdf[lu] = (lumIdf[lu] || 0) + 1;
+    });
+
+    function heatToRows(heat) {
+      const out = [];
+      Object.keys(heat).forEach(function (k) {
+        const p = k.split("_");
+        const dow = parseInt(p[0], 10);
+        const hour = parseInt(p[1], 10);
+        out.push({
+          dow: DOW_FR[dow],
+          dowOrder: dow === 0 ? 7 : dow,
+          hour: hour,
+          count: heat[k]
+        });
+      });
+      return out;
+    }
+
+    const sumChi = hourlyChi.reduce(function (a, b) { return a + b; }, 0);
+    const sumIdf = hourlyIdf.reduce(function (a, b) { return a + b; }, 0);
+    const hourlyNorm = [];
+    for (let h = 0; h < 24; h++) {
+      hourlyNorm.push({
+        hour: h,
+        Chicago_pct: sumChi ? (100 * hourlyChi[h] / sumChi) : 0,
+        IDF_pct: sumIdf ? (100 * hourlyIdf[h] / sumIdf) : 0
+      });
+    }
+
+    const hourlyRaw = [];
+    for (let h = 0; h < 24; h++) {
+      hourlyRaw.push({ hour: h, Chicago: hourlyChi[h], IDF: hourlyIdf[h] });
+    }
+
+    const monthly = [];
+    const monthNames = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+    for (let m = 1; m <= 12; m++) {
+      monthly.push({ month: monthNames[m - 1], monthNum: m, Chicago: monthlyChi[m], IDF: monthlyIdf[m] });
+    }
+
+    function topN(obj, n) {
+      return Object.keys(obj)
+        .map(function (k) { return { name: k, value: obj[k] }; })
+        .sort(function (a, b) { return b.value - a.value; })
+        .slice(0, n);
+    }
+
+    const fmt = function (ts) {
+      if (!ts) return "—";
+      const d = new Date(ts);
+      return d.toISOString().slice(0, 10);
+    };
+
+    return {
+      nChi: nChi,
+      nIdf: nIdf,
+      periodChi: fmt(minChi) + " → " + fmt(maxChi),
+      periodIdf: fmt(minIdf) + " → " + fmt(maxIdf),
+      hourlyRaw: hourlyRaw,
+      hourlyNorm: hourlyNorm,
+      monthly: monthly,
+      heatChiRows: heatToRows(heatChi),
+      heatIdfRows: heatToRows(heatIdf),
+      topSide: topN(sideCount, 12),
+      topDep: topN(depCount, 12),
+      topWeatherChi: topN(weatherChi, 10),
+      topWeatherIdf: topN(weatherIdf, 10),
+      topLumChi: topN(lumChi, 8),
+      topLumIdf: topN(lumIdf, 8),
+      hitRun: hitRun,
+      quality: {
+        chiDateValid: chiDateValid,
+        chiHourValid: chiHourValid,
+        chiCoordValid: chiCoordValid,
+        idfDateValid: idfDateValid,
+        idfHourValid: idfHourValid,
+        idfCoordValid: idfCoordValid
+      },
+      pointsChi: samplePoints(rowsChicago, "LATITUDE", "LONGITUDE", 4500),
+      pointsIdf: samplePoints(rowsIdf, "lat", "long", 4500)
+    };
+  }
+
+  function samplePoints(rows, latKey, lonKey, maxN) {
+    const step = Math.max(1, Math.floor(rows.length / maxN));
+    const out = [];
+    for (let i = 0; i < rows.length; i += step) {
+      const lat = parseFloat(String(rows[i][latKey]).replace(",", "."));
+      const lon = parseFloat(String(rows[i][lonKey]).replace(",", "."));
+      if (!isNaN(lat) && !isNaN(lon)) out.push([lat, lon, 0.35]);
+    }
+    return out;
+  }
+
+  function embed(id, spec) {
+    spec.config = spec.config || {};
+    spec.config.font = "Source Sans 3";
+    spec.config.title = Object.assign({ font: "Fraunces", color: "#2a2622", fontSize: 15, fontWeight: 600 }, spec.config.title || {});
+    return vegaEmbed("#" + id, spec, { actions: false, renderer: "canvas" }).catch(function (e) {
+      console.error("Vega", id, e);
+      var el = document.getElementById(id);
+      if (el) {
+        el.innerHTML = "<p style=\"color:#b45309;padding:1rem;font-family:Source Sans 3,sans-serif;\">Erreur graphique (" + id + ") : " + String(e.message || e) + "</p>";
+      }
+    });
+  }
+
+  /** Largeur stable : évite width:container = 0 si le reflow n’a pas encore eu lieu. */
+  function chartWidthPx() {
+    var main = document.getElementById("main-content");
+    var w = main ? main.offsetWidth : 0;
+    if (!w || w < 120) w = Math.min(1024, window.innerWidth - 48 || 900);
+    return Math.max(320, Math.min(w - 40, 980));
+  }
+
+  function buildHeatSpec(title, values, colorRange, widthPx) {
+    return {
+      $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+      title: title,
+      width: widthPx,
+      height: 280,
+      data: { values: values },
+      encoding: {
+        x: { field: "hour", type: "ordinal", title: "Heure", axis: { labelAngle: 0 } },
+        y: {
+          field: "dow",
+          type: "ordinal",
+          title: "Jour",
+          sort: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+        },
+        color: {
+          field: "count",
+          type: "quantitative",
+          title: "Accidents",
+          scale: { scheme: colorRange, type: "sqrt" }
+        },
+        tooltip: [
+          { field: "dow", title: "Jour" },
+          { field: "hour", title: "Heure" },
+          { field: "count", title: "Nombre" }
+        ]
+      },
+      mark: { type: "rect", stroke: "#e3ddd4", strokeWidth: 0.5 },
+      config: { background: "#ffffff", axis: { labelColor: "#5c534a", titleColor: "#352f2a" }, legend: { labelColor: "#5c534a", titleColor: "#352f2a" } }
+    };
+  }
+
+  function runMaps(pointsChi, pointsIdf) {
+    var radiusInput = document.getElementById("map-radius");
+    var intensityInput = document.getElementById("map-intensity");
+    var radiusVal = document.getElementById("map-radius-val");
+    var intensityVal = document.getElementById("map-intensity-val");
+    var syncInput = document.getElementById("map-sync");
+    var pointsInput = document.getElementById("map-points");
+    var recenterBtn = document.getElementById("map-recenter");
+    var resetZoomBtn = document.getElementById("map-reset-zoom");
+    var mapStatus = document.getElementById("map-status");
+
+    const cChi = pointsChi.length ? pointsChi.reduce(function (acc, p) { return [acc[0] + p[0], acc[1] + p[1]]; }, [0, 0]) : [41.878, -87.63];
+    const centerChi = pointsChi.length ? [cChi[0] / pointsChi.length, cChi[1] / pointsChi.length] : [41.878, -87.63];
+    const cIdf = pointsIdf.length ? pointsIdf.reduce(function (acc, p) { return [acc[0] + p[0], acc[1] + p[1]]; }, [0, 0]) : [48.85, 2.35];
+    const centerIdf = pointsIdf.length ? [cIdf[0] / pointsIdf.length, cIdf[1] / pointsIdf.length] : [48.85, 2.35];
+    const zoomChi0 = 11;
+    const zoomIdf0 = 9;
+
+    const mapChi = L.map("map-chi").setView(centerChi, zoomChi0);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(mapChi);
+    const heatSupported = typeof L.heatLayer === "function";
+
+    const state = {
+      radius: parseInt(radiusInput.value, 10) || 14,
+      intensity: parseFloat(intensityInput.value) || 0.45,
+      syncing: false
+    };
+
+    function pointLayer(points, color) {
+      const g = L.layerGroup();
+      points.slice(0, 2200).forEach(function (p) {
+        L.circleMarker([p[0], p[1]], { radius: 2, fillOpacity: 0.28, color: color, weight: 0 }).addTo(g);
+      });
+      return g;
+    }
+
+    var chiHeat = null;
+    var idfHeat = null;
+    var chiPts = pointLayer(pointsChi, "#b45309");
+    var idfPts = pointLayer(pointsIdf, "#0f766e");
+
+    const mapIdf = L.map("map-idf").setView(centerIdf, zoomIdf0);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(mapIdf);
+
+    function redrawHeat() {
+      if (chiHeat) mapChi.removeLayer(chiHeat);
+      if (idfHeat) mapIdf.removeLayer(idfHeat);
+      if (heatSupported) {
+        chiHeat = L.heatLayer(pointsChi, { radius: state.radius, blur: state.radius + 2, maxZoom: 14, minOpacity: state.intensity }).addTo(mapChi);
+        idfHeat = L.heatLayer(pointsIdf, { radius: Math.max(6, state.radius - 1), blur: state.radius + 1, maxZoom: 12, minOpacity: state.intensity }).addTo(mapIdf);
+      }
+    }
+
+    function togglePointLayers() {
+      if (pointsInput.checked) {
+        if (!mapChi.hasLayer(chiPts)) chiPts.addTo(mapChi);
+        if (!mapIdf.hasLayer(idfPts)) idfPts.addTo(mapIdf);
+      } else {
+        if (mapChi.hasLayer(chiPts)) mapChi.removeLayer(chiPts);
+        if (mapIdf.hasLayer(idfPts)) mapIdf.removeLayer(idfPts);
+      }
+    }
+
+    function syncView(fromMap, toMap) {
+      if (!syncInput.checked || state.syncing) return;
+      state.syncing = true;
+      const c = fromMap.getCenter();
+      toMap.setView([c.lat, c.lng], fromMap.getZoom(), { animate: false });
+      state.syncing = false;
+    }
+
+    function updateStatus(label, map) {
+      if (!mapStatus) return;
+      const c = map.getCenter();
+      mapStatus.textContent = label + " | centre: " + c.lat.toFixed(4) + ", " + c.lng.toFixed(4) + " | zoom: " + map.getZoom();
+    }
+
+    redrawHeat();
+    togglePointLayers();
+
+    radiusVal.textContent = String(state.radius);
+    intensityVal.textContent = state.intensity.toFixed(2);
+
+    radiusInput.addEventListener("input", function () {
+      state.radius = parseInt(radiusInput.value, 10) || 14;
+      radiusVal.textContent = String(state.radius);
+      redrawHeat();
+    });
+
+    intensityInput.addEventListener("input", function () {
+      state.intensity = parseFloat(intensityInput.value) || 0.45;
+      intensityVal.textContent = state.intensity.toFixed(2);
+      redrawHeat();
+    });
+
+    pointsInput.addEventListener("change", togglePointLayers);
+
+    recenterBtn.addEventListener("click", function () {
+      mapChi.setView(centerChi, mapChi.getZoom(), { animate: true });
+      mapIdf.setView(centerIdf, mapIdf.getZoom(), { animate: true });
+    });
+
+    resetZoomBtn.addEventListener("click", function () {
+      mapChi.setView(centerChi, zoomChi0, { animate: true });
+      mapIdf.setView(centerIdf, zoomIdf0, { animate: true });
+    });
+
+    mapChi.on("moveend", function () {
+      syncView(mapChi, mapIdf);
+      updateStatus("Chicago", mapChi);
+    });
+    mapIdf.on("moveend", function () {
+      syncView(mapIdf, mapChi);
+      updateStatus("IDF", mapIdf);
+    });
+
+    mapChi.on("click", function (e) {
+      L.popup().setLatLng(e.latlng).setContent("Chicago<br/>" + e.latlng.lat.toFixed(5) + ", " + e.latlng.lng.toFixed(5)).openOn(mapChi);
+    });
+    mapIdf.on("click", function (e) {
+      L.popup().setLatLng(e.latlng).setContent("IDF<br/>" + e.latlng.lat.toFixed(5) + ", " + e.latlng.lng.toFixed(5)).openOn(mapIdf);
+    });
+
+    updateStatus("Chicago", mapChi);
+
+    if (!heatSupported && mapStatus) {
+      mapStatus.textContent += " | Couche heat indisponible, affichage en points.";
+      pointsInput.checked = true;
+      togglePointLayers();
+    }
+
+    setTimeout(function () {
+      mapChi.invalidateSize();
+      mapIdf.invalidateSize();
+    }, 400);
+  }
+
+  function boundsFromPoints(points) {
+    if (!points.length) return null;
+    let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+    points.forEach(function (p) {
+      var lat = p[0], lon = p[1];
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+      if (lon < minLon) minLon = lon;
+      if (lon > maxLon) maxLon = lon;
+    });
+    return { minLat: minLat, maxLat: maxLat, minLon: minLon, maxLon: maxLon };
+  }
+
+  function gridBins(points, targetCells) {
+    var b = boundsFromPoints(points);
+    if (!b) return { features: [], bounds: null, maxCount: 1 };
+
+    var lonSpan = Math.max(0.01, b.maxLon - b.minLon);
+    var latSpan = Math.max(0.01, b.maxLat - b.minLat);
+    var side = Math.max(8, Math.min(50, Math.round(Math.sqrt(targetCells || 500))));
+    var cellLon = lonSpan / side;
+    var cellLat = latSpan / side;
+
+    var bins = {};
+    points.forEach(function (p) {
+      var lat = p[0], lon = p[1];
+      var ix = Math.max(0, Math.min(side - 1, Math.floor((lon - b.minLon) / cellLon)));
+      var iy = Math.max(0, Math.min(side - 1, Math.floor((lat - b.minLat) / cellLat)));
+      var k = ix + "_" + iy;
+      bins[k] = (bins[k] || 0) + 1;
+    });
+
+    var maxCount = 1;
+    var features = Object.keys(bins).map(function (k) {
+      var p = k.split("_");
+      var ix = parseInt(p[0], 10);
+      var iy = parseInt(p[1], 10);
+      var lon0 = b.minLon + ix * cellLon;
+      var lon1 = lon0 + cellLon;
+      var lat0 = b.minLat + iy * cellLat;
+      var lat1 = lat0 + cellLat;
+      var c = bins[k];
+      if (c > maxCount) maxCount = c;
+      return {
+        type: "Feature",
+        properties: { count: c },
+        geometry: {
+          type: "Polygon",
+          coordinates: [[[lon0, lat0], [lon1, lat0], [lon1, lat1], [lon0, lat1], [lon0, lat0]]]
+        }
+      };
+    });
+
+    return { features: features, bounds: b, maxCount: maxCount };
+  }
+
+  function runMapLibre25D(pointsChi, pointsIdf) {
+    if (typeof maplibregl === "undefined") {
+      var el1 = document.getElementById("viz25d-chi");
+      var el2 = document.getElementById("viz25d-idf");
+      if (el1) el1.innerHTML = "<p style=\"padding:1rem;color:#b45309\">MapLibre non chargé.</p>";
+      if (el2) el2.innerHTML = "<p style=\"padding:1rem;color:#0f766e\">MapLibre non chargé.</p>";
+      return;
+    }
+
+    function mount(containerId, points, palette) {
+      var binned = gridBins(points, 1600);
+      if (!binned.bounds) return;
+      var b = binned.bounds;
+      var osmRasterStyle = {
+        version: 8,
+        sources: {
+          osm: {
+            type: "raster",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tileSize: 256,
+            attribution: "&copy; OpenStreetMap"
+          }
+        },
+        layers: [
+          {
+            id: "osm-base",
+            type: "raster",
+            source: "osm",
+            minzoom: 0,
+            maxzoom: 19
+          }
+        ]
+      };
+
+      var map = new maplibregl.Map({
+        container: containerId,
+        style: osmRasterStyle,
+        center: [(b.minLon + b.maxLon) / 2, (b.minLat + b.maxLat) / 2],
+        zoom: 9,
+        pitch: 55,
+        bearing: -22,
+        antialias: true
+      });
+      map.addControl(new maplibregl.NavigationControl(), "top-right");
+
+      map.on("error", function () {
+        var el = document.getElementById(containerId);
+        if (el && !el.dataset.errShown) {
+          el.dataset.errShown = "1";
+          var warn = document.createElement("div");
+          warn.style.cssText = "position:absolute;z-index:5;left:8px;top:8px;background:#fff8f0;border:1px solid #d9d0c4;color:#8a4b10;padding:6px 8px;border-radius:5px;font-size:12px";
+          warn.textContent = "Fond de carte: problème de chargement tuiles OSM.";
+          el.appendChild(warn);
+        }
+      });
+
+      map.on("load", function () {
+        map.addSource("grid-" + containerId, {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: binned.features }
+        });
+
+        map.addLayer({
+          id: "grid-extrusion-" + containerId,
+          type: "fill-extrusion",
+          source: "grid-" + containerId,
+          paint: {
+            "fill-extrusion-color": [
+              "interpolate",
+              ["linear"],
+              ["get", "count"],
+              1, palette[0],
+              Math.max(2, binned.maxCount * 0.35), palette[1],
+              binned.maxCount, palette[2]
+            ],
+            "fill-extrusion-height": ["*", ["sqrt", ["get", "count"]], 110],
+            "fill-extrusion-base": 0,
+            "fill-extrusion-opacity": 0.86
+          }
+        });
+
+        map.addLayer({
+          id: "grid-outline-" + containerId,
+          type: "line",
+          source: "grid-" + containerId,
+          paint: { "line-color": "#ffffff", "line-width": 0.45, "line-opacity": 0.46 }
+        });
+
+        var mb = new maplibregl.LngLatBounds([b.minLon, b.minLat], [b.maxLon, b.maxLat]);
+        map.fitBounds(mb, { padding: 20, duration: 0 });
+      });
+
+      map.on("click", "grid-extrusion-" + containerId, function (e) {
+        var f = e.features && e.features[0];
+        if (!f) return;
+        var c = f.properties.count;
+        new maplibregl.Popup()
+          .setLngLat(e.lngLat)
+          .setHTML("<strong>Cellule 2.5D</strong><br/>Accidents: " + c)
+          .addTo(map);
+      });
+    }
+
+    mount("viz25d-chi", pointsChi, ["#fee8c8", "#fdbb84", "#b45309"]);
+    mount("viz25d-idf", pointsIdf, ["#d9f2ed", "#7fd4c7", "#0f766e"]);
+  }
+
+  function runCesiumDualGlobe(pointsChi, pointsIdf) {
+    if (typeof Cesium === "undefined") {
+      var g1 = document.getElementById("globe-chi");
+      var g2 = document.getElementById("globe-idf");
+      if (g1) g1.innerHTML = "<p style=\"padding:1rem;color:#b45309\">Cesium non chargé.</p>";
+      if (g2) g2.innerHTML = "<p style=\"padding:1rem;color:#0f766e\">Cesium non chargé.</p>";
+      return;
+    }
+
+    Cesium.Ion.defaultAccessToken = "";
+
+    function makeViewer(containerId) {
+      var viewer = new Cesium.Viewer(containerId, {
+        animation: false,
+        timeline: false,
+        geocoder: false,
+        homeButton: false,
+        sceneModePicker: false,
+        navigationHelpButton: false,
+        baseLayerPicker: false,
+        infoBox: false,
+        selectionIndicator: false,
+        fullscreenButton: false,
+        terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+        imageryProvider: false
+      });
+
+      viewer.imageryLayers.removeAll();
+      viewer.imageryLayers.addImageryProvider(
+        new Cesium.OpenStreetMapImageryProvider({ url: "https://tile.openstreetmap.org/" })
+      );
+      viewer.scene.skyBox.show = false;
+      viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#edf1f4");
+      return viewer;
+    }
+
+    function drawBins(viewer, points, colorHex) {
+      var binned = gridBins(points, 1024);
+      if (!binned.bounds) return;
+
+      var color = Cesium.Color.fromCssColorString(colorHex);
+      var maxC = Math.max(1, binned.maxCount);
+
+      binned.features
+        .sort(function (a, b) { return b.properties.count - a.properties.count; })
+        .slice(0, 420)
+        .forEach(function (f) {
+          var coords = f.geometry.coordinates[0];
+          var lon0 = coords[0][0], lat0 = coords[0][1];
+          var lon1 = coords[2][0], lat1 = coords[2][1];
+          var c = f.properties.count;
+          var h = 600 + Math.sqrt(c) * 260;
+          var alpha = 0.2 + 0.68 * (c / maxC);
+          viewer.entities.add({
+            rectangle: {
+              coordinates: Cesium.Rectangle.fromDegrees(lon0, lat0, lon1, lat1),
+              material: color.withAlpha(Math.min(0.92, alpha)),
+              height: 0,
+              extrudedHeight: h,
+              outline: false
+            },
+            description: "Cellule 2.5D - accidents: " + c
+          });
+        });
+
+      var bb = binned.bounds;
+      var rect = Cesium.Rectangle.fromDegrees(bb.minLon, bb.minLat, bb.maxLon, bb.maxLat);
+      viewer.camera.flyTo({ destination: rect, duration: 0.8 });
+      viewer.scene.globe.enableLighting = true;
+    }
+
+    var chiViewer = makeViewer("globe-chi");
+    var idfViewer = makeViewer("globe-idf");
+    drawBins(chiViewer, pointsChi, "#b45309");
+    drawBins(idfViewer, pointsIdf, "#0f766e");
+  }
+
+  function render(data) {
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("main-content").style.display = "block";
+
+    const kpis = document.getElementById("kpis");
+    kpis.innerHTML =
+      '<div class="kpi chi"><div class="lbl">Enregistrements Chicago</div><div class="val">' + data.nChi.toLocaleString("fr-FR") + "</div></div>" +
+      '<div class="kpi idf"><div class="lbl">Enregistrements IDF</div><div class="val">' + data.nIdf.toLocaleString("fr-FR") + "</div></div>" +
+      '<div class="kpi"><div class="lbl">Période (Chicago)</div><div class="val" style="font-size:0.95rem">' + data.periodChi + "</div></div>" +
+      '<div class="kpi"><div class="lbl">Période (IDF)</div><div class="val" style="font-size:0.95rem">' + data.periodIdf + "</div></div>";
+
+    var remarks = document.getElementById("data-remarks");
+    if (remarks) {
+      var q = data.quality;
+      var pct = function (v, n) { return n ? (100 * v / n).toFixed(1) : "0.0"; };
+      var topSide = data.topSide[0] ? data.topSide[0].name + " (" + data.topSide[0].value.toLocaleString("fr-FR") + ")" : "—";
+      var topDep = data.topDep[0] ? data.topDep[0].name + " (" + data.topDep[0].value.toLocaleString("fr-FR") + ")" : "—";
+      var wxChi = data.topWeatherChi[0] ? data.topWeatherChi[0].name : "—";
+      var wxIdf = data.topWeatherIdf[0] ? data.topWeatherIdf[0].name : "—";
+
+      remarks.innerHTML =
+        "<strong>Remarques automatiques (calculées depuis les 2 CSV chargés)</strong>" +
+        "<ul>" +
+        "<li>Complétude Chicago: dates " + pct(q.chiDateValid, data.nChi) + "% ; heures " + pct(q.chiHourValid, data.nChi) + "% ; coordonnées " + pct(q.chiCoordValid, data.nChi) + "%.</li>" +
+        "<li>Complétude IDF: dates " + pct(q.idfDateValid, data.nIdf) + "% ; heures " + pct(q.idfHourValid, data.nIdf) + "% ; coordonnées " + pct(q.idfCoordValid, data.nIdf) + "%.</li>" +
+        "<li>Concentration territoriale principale: Chicago = " + topSide + " ; IDF = " + topDep + ".</li>" +
+        "<li>Modalité météo dominante: Chicago = " + wxChi + " ; IDF = " + wxIdf + ". Interpréter avec prudence car les nomenclatures diffèrent.</li>" +
+        "<li>Comparaison horaire: toujours tenir compte du décalage Paris-Chicago et des rythmes locaux (matin, midi, fin de journée).</li>" +
+        "</ul>";
+    }
+
+    function getHourUiState() {
+      var minInput = document.getElementById("hour-min");
+      var maxInput = document.getElementById("hour-max");
+      var modeInput = document.getElementById("hour-view-mode");
+      var hMin = minInput ? parseInt(minInput.value, 10) : 0;
+      var hMax = maxInput ? parseInt(maxInput.value, 10) : 23;
+      if (isNaN(hMin)) hMin = 0;
+      if (isNaN(hMax)) hMax = 23;
+      if (hMin > hMax) {
+        var tmp = hMin;
+        hMin = hMax;
+        hMax = tmp;
+      }
+      return {
+        hMin: hMin,
+        hMax: hMax,
+        mode: modeInput ? modeInput.value : "both"
+      };
+    }
+
+    function drawCharts() {
+      var w = chartWidthPx();
+      var cellW = Math.max(280, Math.floor(w / 2) - 24);
+      var ui = getHourUiState();
+
+      var minLbl = document.getElementById("hour-min-val");
+      var maxLbl = document.getElementById("hour-max-val");
+      if (minLbl) minLbl.textContent = String(ui.hMin);
+      if (maxLbl) maxLbl.textContent = String(ui.hMax);
+
+      var rawLong = [];
+      data.hourlyRaw.forEach(function (d) {
+        if (d.hour >= ui.hMin && d.hour <= ui.hMax) {
+          rawLong.push({ hour: d.hour, count: d.Chicago, city: "Chicago" });
+          rawLong.push({ hour: d.hour, count: d.IDF, city: "IDF" });
+        }
+      });
+
+      var normLong = [];
+      data.hourlyNorm.forEach(function (d) {
+        if (d.hour >= ui.hMin && d.hour <= ui.hMax) {
+          normLong.push({ hour: d.hour, pct: d.Chicago_pct, ville: "Chicago" });
+          normLong.push({ hour: d.hour, pct: d.IDF_pct, ville: "IDF" });
+        }
+      });
+
+      var divergenceRows = data.hourlyNorm
+        .filter(function (d) { return d.hour >= ui.hMin && d.hour <= ui.hMax; })
+        .map(function (d) {
+          return {
+            hour: d.hour,
+            gapPctPoints: Math.abs(d.Chicago_pct - d.IDF_pct),
+            Chicago_pct: d.Chicago_pct,
+            IDF_pct: d.IDF_pct
+          };
+        });
+
+      var monthLong = [];
+      data.monthly.forEach(function (d) {
+        monthLong.push({ month: d.month, monthNum: d.monthNum, count: d.Chicago, city: "Chicago" });
+        monthLong.push({ month: d.month, monthNum: d.monthNum, count: d.IDF, city: "IDF" });
+      });
+
+      var rawEl = document.getElementById("chart-hour-raw");
+      var normEl = document.getElementById("chart-hour-norm");
+      if (rawEl) rawEl.style.display = (ui.mode === "norm") ? "none" : "block";
+      if (normEl) normEl.style.display = (ui.mode === "raw") ? "none" : "block";
+
+      embed("chart-hour-raw", {
+        $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+        title: "Accidents par heure (nombre brut)",
+        data: { values: rawLong },
+        facet: { column: { field: "city", type: "nominal", header: { title: "" } } },
+        columns: 2,
+        spec: {
+          width: cellW,
+          height: 240,
+          mark: "bar",
+          encoding: {
+            x: { field: "hour", type: "ordinal", title: "Heure" },
+            y: { field: "count", type: "quantitative", title: "Nombre" },
+            color: {
+              field: "city",
+              type: "nominal",
+              legend: null,
+              scale: { domain: ["Chicago", "IDF"], range: ["#b45309", "#0f766e"] }
+            },
+            tooltip: [
+              { field: "hour", title: "Heure" },
+              { field: "city", title: "Série" },
+              { field: "count", title: "Nombre" }
+            ]
+          }
+        },
+        config: { background: "#ffffff", axis: { labelColor: "#5c534a", titleColor: "#352f2a", gridColor: "#ebe7e1", grid: true }, legend: { labelColor: "#5c534a", titleColor: "#352f2a" } }
+      });
+
+      embed("chart-hour-norm", {
+        $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+        title: "Profil horaire — parts normalisées (%)",
+        width: w,
+        height: 260,
+        data: { values: normLong },
+        mark: { type: "line", point: true },
+        encoding: {
+          x: { field: "hour", type: "ordinal", title: "Heure" },
+          y: { field: "pct", type: "quantitative", title: "% des accidents (ville)" },
+          color: {
+            field: "ville",
+            type: "nominal",
+            scale: { domain: ["Chicago", "IDF"], range: ["#b45309", "#0f766e"] }
+          },
+          tooltip: [
+            { field: "hour", title: "Heure" },
+            { field: "ville", title: "Série" },
+            { field: "pct", title: "%", format: ".2f" }
+          ]
+        },
+        config: { background: "#ffffff", axis: { labelColor: "#5c534a", titleColor: "#352f2a", gridColor: "#ebe7e1", grid: true }, legend: { labelColor: "#5c534a", titleColor: "#352f2a" } }
+      });
+
+      embed("chart-divergence", {
+        $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+        title: "Divergence horaire Chicago vs IDF (écart absolu en points de %) ",
+        width: w,
+        height: 210,
+        data: { values: divergenceRows },
+        mark: { type: "area", line: true, color: "#8b5e34", opacity: 0.35 },
+        encoding: {
+          x: { field: "hour", type: "ordinal", title: "Heure" },
+          y: { field: "gapPctPoints", type: "quantitative", title: "Écart absolu (points de %)" },
+          tooltip: [
+            { field: "hour", title: "Heure" },
+            { field: "gapPctPoints", title: "Écart", format: ".2f" },
+            { field: "Chicago_pct", title: "Chicago %", format: ".2f" },
+            { field: "IDF_pct", title: "IDF %", format: ".2f" }
+          ]
+        },
+        config: { background: "#ffffff", axis: { labelColor: "#5c534a", titleColor: "#352f2a", gridColor: "#ebe7e1", grid: true } }
+      });
+
+      var peakChi = data.hourlyRaw
+        .filter(function (d) { return d.hour >= ui.hMin && d.hour <= ui.hMax; })
+        .sort(function (a, b) { return b.Chicago - a.Chicago; })[0];
+      var peakIdf = data.hourlyRaw
+        .filter(function (d) { return d.hour >= ui.hMin && d.hour <= ui.hMax; })
+        .sort(function (a, b) { return b.IDF - a.IDF; })[0];
+      var meanGap = divergenceRows.length
+        ? divergenceRows.reduce(function (a, b) { return a + b.gapPctPoints; }, 0) / divergenceRows.length
+        : 0;
+      var insight = document.getElementById("analysis-insight");
+      if (insight) {
+        var chiHour = peakChi ? peakChi.hour : null;
+        var idfHour = peakIdf ? peakIdf.hour : null;
+        var chiInParis = (chiHour === null) ? null : (chiHour + 7) % 24;
+        var alignedGap = (chiInParis === null || idfHour === null)
+          ? null
+          : Math.min(Math.abs(chiInParis - idfHour), 24 - Math.abs(chiInParis - idfHour));
+
+        insight.innerHTML =
+          "Fenêtre active: <strong>" + ui.hMin + "h–" + ui.hMax + "h</strong>. " +
+          "Pic Chicago (heure locale): <strong>" + (peakChi ? peakChi.hour : "—") + "h</strong>, " +
+          "pic IDF (heure locale): <strong>" + (peakIdf ? peakIdf.hour : "—") + "h</strong>. " +
+          "Chicago projeté en heure de Paris (approx. +7h): <strong>" + (chiInParis === null ? "—" : chiInParis) + "h</strong>" +
+          (alignedGap === null ? ". " : ", écart résiduel avec le pic IDF: <strong>" + alignedGap + "h</strong>. ") +
+          "Divergence moyenne des profils normalisés: <strong>" + meanGap.toFixed(2) + " points</strong>. " +
+          "Lecture critique: il faut distinguer l’effet fuseau horaire des rythmes locaux (départs du matin, pause de midi, retours du soir, sorties école/université) et des biais de collecte.";
+      }
+
+      embed("chart-month", {
+        $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+        title: "Accidents par mois",
+        data: { values: monthLong },
+        facet: { column: { field: "city", type: "nominal", header: { title: "" } } },
+        columns: 2,
+        spec: {
+          width: cellW,
+          height: 260,
+          mark: "bar",
+          encoding: {
+            x: {
+              field: "month",
+              type: "ordinal",
+              sort: ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"],
+              title: "Mois"
+            },
+            y: { field: "count", type: "quantitative", title: "Nombre" },
+            color: {
+              field: "city",
+              type: "nominal",
+              legend: null,
+              scale: { domain: ["Chicago", "IDF"], range: ["#b45309", "#0f766e"] }
+            },
+            tooltip: [
+              { field: "month", title: "Mois" },
+              { field: "city", title: "Série" },
+              { field: "count", title: "Nombre" }
+            ]
+          }
+        },
+        config: { background: "#ffffff", axis: { labelColor: "#5c534a", titleColor: "#352f2a", gridColor: "#ebe7e1", grid: true }, legend: { labelColor: "#5c534a", titleColor: "#352f2a" } }
+      });
+
+      embed("chart-heat-chi", buildHeatSpec("Chicago — densité jour × heure", data.heatChiRows, "magma", w));
+      embed("chart-heat-idf", buildHeatSpec("Île-de-France — densité jour × heure", data.heatIdfRows, "viridis", w));
+
+      var lumVals = [];
+      data.topLumChi.forEach(function (d) {
+        lumVals.push({ name: d.name, value: d.value, lieu: "Chicago" });
+      });
+      data.topLumIdf.forEach(function (d) {
+        lumVals.push({ name: d.name, value: d.value, lieu: "IDF" });
+      });
+      embed("chart-lum", {
+        $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+        title: "Luminosité (libellés sources) — top catégories",
+        width: w,
+        height: Math.max(220, lumVals.length * 14),
+        data: { values: lumVals },
+        mark: "bar",
+        encoding: {
+          y: { field: "name", type: "nominal", sort: "-x", title: null },
+          x: { field: "value", type: "quantitative", title: "Nombre" },
+          color: {
+            field: "lieu",
+            type: "nominal",
+            scale: { domain: ["Chicago", "IDF"], range: ["#b45309", "#0f766e"] }
+          },
+          tooltip: [{ field: "name" }, { field: "value" }, { field: "lieu" }]
+        },
+        config: { background: "#ffffff", axis: { labelColor: "#5c534a", titleColor: "#352f2a", gridColor: "#ebe7e1", grid: true }, legend: { labelColor: "#5c534a", titleColor: "#352f2a" } }
+      });
+
+      var wxVals = [];
+      data.topWeatherChi.forEach(function (d) {
+        wxVals.push({ name: d.name, value: d.value, lieu: "Chicago" });
+      });
+      data.topWeatherIdf.forEach(function (d) {
+        wxVals.push({ name: d.name, value: d.value, lieu: "IDF" });
+      });
+      embed("chart-weather", {
+        $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+        title: "Conditions atmosphériques — top catégories par fichier",
+        width: w,
+        height: Math.max(280, wxVals.length * 12),
+        data: { values: wxVals },
+        mark: "bar",
+        encoding: {
+          y: { field: "name", type: "nominal", sort: "-x", title: null },
+          x: { field: "value", type: "quantitative", title: "Nombre" },
+          color: {
+            field: "lieu",
+            type: "nominal",
+            scale: { domain: ["Chicago", "IDF"], range: ["#b45309", "#0f766e"] }
+          },
+          tooltip: [{ field: "name" }, { field: "value" }, { field: "lieu" }]
+        },
+        config: { background: "#ffffff", axis: { labelColor: "#5c534a", titleColor: "#352f2a", gridColor: "#ebe7e1", grid: true }, legend: { labelColor: "#5c534a", titleColor: "#352f2a" } }
+      });
+
+      embed("chart-side", {
+        $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+        title: "Chicago — accidents par secteur (Side)",
+        width: w,
+        height: Math.max(260, data.topSide.length * 16),
+        data: { values: data.topSide },
+        mark: { type: "bar", tooltip: true },
+        encoding: {
+          y: { field: "name", type: "nominal", sort: "-x", title: null },
+          x: { field: "value", type: "quantitative", title: "Nombre" },
+          color: { value: "#b45309" }
+        },
+        config: { background: "#ffffff", axis: { labelColor: "#5c534a", titleColor: "#352f2a", gridColor: "#ebe7e1", grid: true } }
+      });
+
+      embed("chart-dep", {
+        $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+        title: "Île-de-France — accidents par département (top)",
+        width: w,
+        height: Math.max(260, data.topDep.length * 16),
+        data: { values: data.topDep },
+        mark: { type: "bar", tooltip: true },
+        encoding: {
+          y: { field: "name", type: "nominal", sort: "-x", title: null },
+          x: { field: "value", type: "quantitative", title: "Nombre" },
+          color: { value: "#0f766e" }
+        },
+        config: { background: "#ffffff", axis: { labelColor: "#5c534a", titleColor: "#352f2a", gridColor: "#ebe7e1", grid: true } }
+      });
+
+      embed("chart-hitrun", {
+        $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+        title: "Déclarations hit-and-run (Chicago)",
+        width: Math.min(400, w),
+        height: 220,
+        data: {
+          values: [
+            { cat: "Oui (Y)", n: data.hitRun.Y },
+            { cat: "Non / vide", n: data.hitRun.N },
+            { cat: "Autre", n: data.hitRun.Autre }
+          ]
+        },
+        mark: { type: "arc", outerRadius: 80 },
+        encoding: {
+          theta: { field: "n", type: "quantitative", stack: true },
+          color: { field: "cat", type: "nominal", title: "Type" },
+          tooltip: [{ field: "cat" }, { field: "n", title: "Nombre" }]
+        },
+        view: { stroke: null },
+        config: { background: "#ffffff", legend: { labelColor: "#5c534a", titleColor: "#352f2a" } }
+      });
+
+    }
+
+    function bindAnalysisControls() {
+      var minInput = document.getElementById("hour-min");
+      var maxInput = document.getElementById("hour-max");
+      var modeInput = document.getElementById("hour-view-mode");
+      var resetBtn = document.getElementById("hour-reset");
+      if (!minInput || !maxInput || !modeInput || !resetBtn) return;
+
+      function onRangeInput(source) {
+        var minVal = parseInt(minInput.value, 10);
+        var maxVal = parseInt(maxInput.value, 10);
+        if (source === "min" && minVal > maxVal) maxInput.value = minInput.value;
+        if (source === "max" && maxVal < minVal) minInput.value = maxInput.value;
+        drawCharts();
+      }
+
+      minInput.addEventListener("input", function () { onRangeInput("min"); });
+      maxInput.addEventListener("input", function () { onRangeInput("max"); });
+      modeInput.addEventListener("change", drawCharts);
+      resetBtn.addEventListener("click", function () {
+        minInput.value = "0";
+        maxInput.value = "23";
+        modeInput.value = "both";
+        drawCharts();
+      });
+    }
+
+    setTimeout(drawCharts, 50);
+    setTimeout(function () {
+      bindAnalysisControls();
+      runMaps(data.pointsChi, data.pointsIdf);
+      runMapLibre25D(data.pointsChi, data.pointsIdf);
+      runCesiumDualGlobe(data.pointsChi, data.pointsIdf);
+    }, 120);
+  }
+
+  Papa.parse("accidents_chicago.csv", {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    complete: function (chiRes) {
+      Papa.parse("accidents_IDF.csv", {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: function (idfRes) {
+          try {
+            const agg = aggregate(chiRes.data, idfRes.data);
+            render(agg);
+          } catch (e) {
+            document.getElementById("loading").textContent = "Erreur d’analyse : " + e.message;
+            console.error(e);
+          }
+        },
+        error: function (e) {
+          document.getElementById("loading").textContent = "Impossible de charger accidents_IDF.csv — utilisez un serveur HTTP local (voir console).";
+          console.error(e);
+        }
+      });
+    },
+    error: function (e) {
+      document.getElementById("loading").innerHTML =
+        "Impossible de charger les CSV en <code>file://</code>. Lancez un serveur dans ce dossier, par exemple : " +
+        "<code>npx --yes serve .</code> puis ouvrez l’URL indiquée.";
+      console.error(e);
+    }
+  });
+})();
+  </script>
+</body>
+</html>
